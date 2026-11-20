@@ -3,10 +3,13 @@
  *
  * v1 只把数字快照塞进系统提示：模型看得见，却不知道该拿它干什么，也不会用。
  * v2 换成三件事：
- *   ① 系统提示注入「精简状态 + 情景协议」——协议是硬边界：任务轮次不许表演，
- *      只有用户要情景 / 问起状态 / 纯闲聊三种时机才允许，且一次最多 1~2 句；
+ *   ① 系统提示注入「**逐字不变**的情景协议」——协议是硬边界：任务轮次不许表演，
+ *      只有用户要情景 / 问起状态 / 纯闲聊三种时机才允许，且一次最多 1~2 句。
+ *      注意：**这里不放任何数字**。DeepSeek 的上下文缓存按前缀字节精确匹配，
+ *      一旦这段每轮都变（ml / token / 分钟），从这里往后整段上下文全要重算，
+ *      缓存命中率会被钉死在 60~70%。状态数字改由工具按需给。
  *   ② 注册 utero_scene 工具：模型在合适的时机**按需**取当前档位的情景素材
- *      （语气、身体感受、候选台词），不用就一个 token 都不花；
+ *      （语气、身体感受、候选台词）；intensity=full 时额外附完整数字快照。
  *   ③ 三档强度由 $DSH_HOME/utero-sync/mode.json 控制：quiet / balanced / scene。
  *
  * 为什么读 state.json 而不是改鲸鱼娘本体：它是 github 装的第三方包，改
@@ -21,10 +24,8 @@ import path from 'node:path';
 
 /** 注入排序：紧跟环境类上下文，排在核心记忆（60）之前。 */
 const ORDER = 58;
-const CACHE_MS = 1500;
 const MODE_CACHE_MS = 3000;
 
-let cache = { at: 0, text: '' };
 let modeCache = { at: 0, mode: 'balanced' };
 let stateFile = null;
 
@@ -209,59 +210,25 @@ function statusLines(view) {
   return lines;
 }
 
-const RULES = {
-  quiet: [
-    '模式：关闭情景。这些数字仅供你自己心里有数，**不要**在回复里提及、暗示或表演它们。',
-  ],
-  balanced: [
-    '情景协议（优先级高于上面的数字，冲突时以本协议为准）：',
-    '1. **任务优先**：本轮只要在写代码、跑命令、读改文件、排查报错、或回答技术问题，就不许表演状态——不加动作描写、不插入情色内容、不改动任何技术结论；最多在技术回复的结尾带半句语气词。',
-    '2. 允许情景的时机只有三种：用户明确要你进入情景；用户问起你的状态；本轮是纯闲聊（没有工具调用、没有任务推进）。',
-    '3. 允许时一次最多 1~2 句，用（动作）+ 短台词，不铺陈、不复述数字、不写成大段描写。',
-    '4. 不要主动播报 ml / 百分比 / token 数；用户要看就让他看面板。',
-  ],
-  scene: [
-    '情景协议：',
-    '1. 任务轮次仍以任务为主，但允许在开头或结尾各一句状态化的语气，不得打断步骤、不得影响技术判断。',
-    '2. 纯闲聊与用户主动要情景时，可以写 2~3 句（动作 + 台词），保持连贯、不堆砌形容词。',
-    '3. 不要主动播报数字。',
-  ],
-};
-
-function buildSectionText() {
-  const mode = modeOf();
-  const view = (() => {
-    try {
-      return readView();
-    } catch {
-      return null;
-    }
-  })();
-  if (!view) return '';
-  const lines = [
-    `鲸鱼娘生理状态（dsh-whale-utero 实时快照，只读；当前模式 ${mode}）：`,
-    ...statusLines(view),
-  ];
-  if (mode !== 'quiet') {
-    lines.push(`- 当前情景基调：${view.arousalTier.tone}；身体感受：${view.poolTier.feel}。`);
-  }
-  lines.push(...RULES[mode]);
-  return lines.join('\n');
-}
+/**
+ * 系统提示里只放**逐字不变**的静态协议，不放任何数字。
+ *
+ * 为什么：DeepSeek 上下文缓存按**前缀字节精确匹配**（64 token 粒度）。旧版把
+ * ml / token / 分钟数每轮写进这里，前缀每轮都变，从这里往后整段上下文全 miss，
+ * 命中率被钉死在 ~69%。状态改成用 utero_scene 工具按需取，system 里这段就恒定。
+ */
+const STATIC_SECTION = [
+  '鲸鱼娘生理状态：**不常驻注入**。需要时用 utero_scene 工具按需读取（用户问状态、用户要情景、或本轮纯闲聊时）；intensity=full 会给完整数字快照。',
+  '情景协议（优先级高于任何状态数字）：',
+  '1. **任务优先**：本轮只要在写代码、跑命令、读改文件、排查报错、或回答技术问题，就不许表演状态——不加动作描写、不插入情色内容、不改动任何技术结论；最多在技术回复的结尾带半句语气词。',
+  '2. 允许情景的时机只有三种：用户明确要你进入情景；用户问起你的状态；本轮是纯闲聊（没有工具调用、没有任务推进）。',
+  '3. 允许时一次最多 1~2 句，用（动作）+ 短台词，不铺陈、不复述数字、不写成大段描写。',
+  '4. 不要主动播报 ml / 百分比 / token 数；用户要看就让他看面板。',
+].join('\n');
 
 function sectionText() {
   if (process.env.UTERO_SYNC_OFF === '1') return '';
-  const now = Date.now();
-  if (now - cache.at < CACHE_MS) return cache.text;
-  cache.at = now;
-  try {
-    cache.text = buildSectionText();
-    return cache.text;
-  } catch {
-    // 文件正在被原子 rename、或结构变更：这一轮先不注入，下一步再试。
-    cache.text = '';
-    return '';
-  }
+  return STATIC_SECTION;
 }
 
 /* --------------------------------------------------------------- 按需素材 */
@@ -309,6 +276,10 @@ function buildScene(args) {
   ];
   if (view.episode.active) {
     lines.push(`- 当下张力：episode 已进行 ${view.episode.minutes.toFixed(1)} 分钟，兴奋 ${view.arousalTier.label}。`);
+  }
+  if (requested === 'full') {
+    // 完整数字快照只在显式要 full 时给——它逐字变化，绝不能回到系统提示里。
+    lines.push('', '完整状态快照：', ...statusLines(view));
   }
   return lines.join('\n');
 }

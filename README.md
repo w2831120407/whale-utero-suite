@@ -40,8 +40,11 @@ whale-utero-suite/
    不会叠加。
 
 2. **对话同步**：落盘并注册 `utero-sync` 插件。它只读鲸鱼娘每 5s 原子落盘的
-   `data/state.json`，通过 `systemPrompt.section()` 把「精简状态 + 情景协议」注入每个
-   会话，并注册 `utero_scene` 工具供模型在闲聊时按需取情景素材。
+   `data/state.json`，通过 `systemPrompt.section()` 给每个会话注入一段**逐字不变**的
+   情景协议，并注册 `utero_scene` 工具供模型按需取状态数字与情景素材。
+   注入区里**不放任何会变的数字**（ml / token / 分钟）：DeepSeek 的上下文缓存按前缀
+   字节精确匹配，状态若每轮写进系统提示，从那里往后整段上下文每轮都要重算，命中率
+   会被压在 60~70%。数字改由 `utero_scene`（`intensity=full`）按需给，前缀才稳。
 
 **情景协议**（注入内容的一部分，决定"不打扰任务"）：
 
@@ -163,7 +166,10 @@ node apply.mjs apply --install-whale
 { "mode": "balanced" }
 ```
 
-- `quiet`：只注入数字，明令禁止提及或表演——写代码时一个字都不露
+`mode` 只影响 `utero_scene` 返回的素材，**不改系统提示**——提示里的协议固定为
+`balanced` 那版，为的是保住前缀缓存：
+
+- `quiet`：不给情景素材，只给数字；回复里一个字都不露
 - `balanced`（默认）：任务轮次零表演；闲聊 / 被问起时才 1~2 句
 - `scene`：任务轮次允许首尾各一句，闲聊放开到 2~3 句
 
