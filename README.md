@@ -3,6 +3,18 @@
 「鲸鱼娘生理扩展」（`dsh-whale-utero`）+ 对话状态同步（`utero-sync`）的**通用补丁套件**：
 一个可重复执行的脚本，把散落在两处的改动收成一份可分发、可回滚的东西。
 
+## 快速开始
+
+```bash
+git clone https://github.com/w2831120407/whale-utero-suite.git
+cd whale-utero-suite
+./install.sh            # = node apply.mjs detect，只读体检
+./install.sh apply      # 自适应部署（自动判断端、profile、要不要打 CSS）
+# 然后重启一次宿主
+```
+
+需要 Node.js ≥ 20；`apply` 会用 `pnpm` 装依赖（没有 pnpm 就加 `--no-install`，自己装）。
+
 ```
 whale-utero-suite/
 ├── apply.mjs                 # 唯一入口：status / apply / revert
