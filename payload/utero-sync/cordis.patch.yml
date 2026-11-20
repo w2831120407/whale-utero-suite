@@ -1,0 +1,5 @@
+# utero-sync bundle patch：把本插件插进 profile 的层栈。
+# 只需要一行 host 面插件；它自己注册 systemPrompt section，不占用 UI 槽位。
+- insert:
+    - id: utero-sync
+      name: 'utero-sync'

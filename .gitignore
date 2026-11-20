@@ -1,0 +1,7 @@
+# 后面 apply 生成的临时/备份文件不要进库
+*.bak
+*.bak-*
+*.utero-suite.bak
+node_modules/
+.DS_Store
+Thumbs.db

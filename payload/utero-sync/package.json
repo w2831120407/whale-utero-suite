@@ -1,0 +1,20 @@
+{
+  "name": "utero-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "把 dsh-whale-utero 的生理状态实时注入对话系统提示：模型每一步都能看到腔内容量、兴奋/压抑、episode 进度与语音情绪参数。只读 state.json，不改鲸鱼娘插件本身。",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "id": "utero-sync",
+    "name": "鲸鱼娘状态同步",
+    "permissions": "系统提示词注入（只读本机 state.json）",
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

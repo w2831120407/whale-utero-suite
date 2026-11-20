@@ -1,0 +1,46 @@
+/* ===== 手机窄屏（≤820px）：放不下的内容一律改成可滑动，而不是裁掉 =====
+   背景：这个面板原本按桌面三栏（190px 导航 / 主区 / 320px 事件栏）设计，
+   .wu-root 固定 height:100% + overflow:hidden，内部各区块各自 overflow-y。
+   窄屏上父级高度一变，内层滚动容器的高度就算不出来，表现为"内容被裁、
+   还滚不动"。这里统一改成：页面本体自己纵向滚动，内层不再嵌套滚动；
+   横向放不下的行（导航、标签、图例、动作按钮）单独做横向滑动。 */
+@media (max-width:820px){
+  /* 页面本体：取消裁切与固定高度，整页可纵向滑动 */
+  .wu-root{
+    height:100%; min-height:0;
+    overflow-y:auto; overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding:calc(14px + var(--dsh-frame-top-clearance, 0px)) 12px 24px max(12px, var(--dsh-frame-leading-clearance, 0px));
+  }
+  /* 三栏网格改单列堆叠；flex:1 0 auto 让内容按真实高度撑开，页面才有东西可滚 */
+  .wu-grid{display:flex;flex-direction:column;gap:12px;flex:1 0 auto;min-height:0;overflow:visible}
+  /* 内层容器交还滚动权：取消各自的 overflow，避免"嵌套滚动 + 高度塌陷" */
+  .wu-main,.wu-side,.wu-feed,.wu-events,.wu-log-page,.wu-settings{
+    height:auto;max-height:none;min-height:0;overflow:visible;
+  }
+  /* 左侧导航：横排一行 + 横向滑动（原来在 1020 断点会折成三四行） */
+  .wu-nav{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;align-self:stretch;padding:8px 10px}
+  .wu-nav-item{flex:0 0 auto;white-space:nowrap}
+  /* 顶栏标签、图例、语音参数、动作按钮：横向滑动而不是被挤压换行 */
+  .wu-chips,.wu-model-legend,.wu-voice-params,.wu-actions{
+    flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+  }
+  .wu-chips>*,.wu-model-legend>*,.wu-voice-params>*,.wu-actions>*{flex:0 0 auto;white-space:nowrap}
+  /* 四格 / 三格 / 两格的信息网格在手机上排单列，别再硬塞 */
+  .wu-model-foot,.wu-params,.wu-voice-preview{grid-template-columns:minmax(0,1fr)}
+  /* 事件行：时间戳单独占一行，正文拿回整行宽度 */
+  .wu-event{grid-template-columns:auto minmax(0,1fr)}
+  .wu-event-time{grid-column:1/-1}
+  /* 卡片允许横向滑动：卡片内若有超宽内容（长数字、宽表格）不被 overflow:hidden 裁掉 */
+  .wu-card{overflow-x:auto;overflow-y:visible}
+  /* 窄屏字号回收一档，避免大数字撑破卡片 */
+  .wu-title h1{font-size:19px}
+  .wu-param-value{font-size:17px}
+  /* 滚动条：统一细条、可见可拖（触屏上也看得见"这里能滑"） */
+  .wu-root,.wu-root *{scrollbar-width:thin;scrollbar-color:rgba(150,170,255,.5) transparent}
+  .wu-root::-webkit-scrollbar,.wu-root *::-webkit-scrollbar{width:6px;height:6px}
+  .wu-root::-webkit-scrollbar-thumb,.wu-root *::-webkit-scrollbar-thumb{
+    background:rgba(150,170,255,.5);border-radius:999px;
+  }
+  .wu-root::-webkit-scrollbar-track,.wu-root *::-webkit-scrollbar-track{background:transparent}
+}
